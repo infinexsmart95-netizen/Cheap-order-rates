@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{color-scheme:dark}body{margin:0}</style>
+<title>CheapOrderRates</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: sticky bar, split hero (pitch + live rate board), then one 3-step order card with payment and WhatsApp handoff */
+:root {
+  --bg: #0b0f1a;
+  --panel: #121829;
+  --panel-2: #1a2238;
+  --line: #27314f;
+  --fg: #eef1f8;
+  --mut: #9aa5c4;
+  --accent: #ffc21a;
+  --accent-ink: #1a1300;
+  --ok: #3ddc97;
+  --bad: #ff6b6b;
+  --display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  padding-block: 0 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background-image: radial-gradient(900px 420px at 85% -80px, rgba(255,194,26,.10), transparent 60%);
+  background-repeat: no-repeat;
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0; background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; }
+.brand svg { flex: none; }
+.brand span { font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: -.02em; }
+.brand b { color: var(--accent); font-weight: 800; }
+.nav { display: flex; align-items: center; gap: 18px; }
+.nav a.link { text-decoration: none; color: var(--mut); font-weight: 500; font-size: 15px; }
+.nav a.link:hover { color: var(--fg); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: 700 15px/1 var(--body); text-decoration: none; cursor: pointer;
+  padding: 13px 18px; border-radius: 10px; border: 2px solid var(--accent);
+  background: var(--accent); color: var(--accent-ink);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 0 -2px rgba(255,194,26,.35); }
+.btn.ghost { background: transparent; color: var(--fg); border-color: var(--line); }
+.btn.ghost:hover { border-color: var(--accent); box-shadow: none; }
+.btn.small { padding: 9px 12px; font-size: 13px; border-radius: 8px; }
+
+.hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 36px; padding: 40px 0 28px; align-items: start; }
+.hero > * { min-width: 0; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+h1 {
+  font-family: var(--display); font-weight: 800; font-size: clamp(38px, 6.4vw, 68px);
+  line-height: .98; letter-spacing: -.035em; margin: 0 0 18px; text-wrap: balance;
+}
+h1 em { font-style: normal; color: var(--accent); }
+.lead { color: var(--mut); font-size: 18px; max-width: 46ch; margin: 0 0 24px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.pay-note { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 14px; color: var(--mut); }
+.pay-note span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--ok); margin-right: 8px; }
+
+.board { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.board-head { display: flex; justify-content: space-between; padding: 12px 16px; background: var(--panel-2); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mut); }
+.row {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center; width: 100%;
+  padding: 15px 16px; border: 0; border-top: 1px solid var(--line); background: transparent; color: inherit;
+  text-align: left; cursor: pointer; font: inherit;
+}
+.row:hover { background: rgba(255,194,26,.07); }
+.row .name { font-weight: 700; font-size: 17px; }
+.row .unit { grid-column: 1; color: var(--mut); font-size: 13px; }
+.row .price { grid-row: 1 / span 2; grid-column: 2; text-align: right; font-family: var(--mono); font-weight: 700; font-size: 22px; color: var(--accent); white-space: nowrap; }
+.row .price small { display: block; font-size: 11px; color: var(--mut); font-weight: 500; letter-spacing: .04em; }
+
+section.order { padding: 36px 0 8px; scroll-margin-top: 70px; }
+h2 { font-family: var(--display); font-weight: 800; font-size: clamp(28px, 4.4vw, 40px); letter-spacing: -.025em; margin: 0 0 8px; text-wrap: balance; }
+.sub { color: var(--mut); margin: 0 0 24px; max-width: 58ch; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.grid > * { min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px; }
+.step { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.step i { font-style: normal; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+label { display: block; font-weight: 700; font-size: 14px; margin: 14px 0 6px; }
+input, select {
+  width: 100%; font: 500 16px var(--body); color: var(--fg); background: var(--bg);
+  border: 1.5px solid var(--line); border-radius: 10px; padding: 13px 14px;
+}
+input::placeholder { color: #66719a; }
+input:focus, select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(255,194,26,.2); }
+.hint { font-size: 13px; color: var(--mut); margin: 6px 0 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.chip { font: 700 13px var(--mono); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.total { margin-top: 20px; padding: 16px; border-radius: 12px; background: var(--bg); border: 1.5px dashed var(--line); display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.total span { color: var(--mut); font-size: 14px; }
+.total strong { font-family: var(--mono); font-size: 30px; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+.acct { margin-top: 4px; padding: 16px; border-radius: 12px; background: var(--bg); border: 1.5px solid var(--line); }
+.acct .k { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mut); }
+.acct .v { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.acct .num { font-family: var(--mono); font-weight: 700; font-size: 26px; letter-spacing: .02em; user-select: all; }
+.send-amt { margin: 14px 0 0; font-size: 15px; }
+.send-amt b { font-family: var(--mono); color: var(--accent); font-size: 18px; }
+.fallback { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--bg); border: 1px solid var(--ok); }
+.fallback p { margin: 0 0 10px; font-size: 14px; color: var(--mut); }
+.err { min-height: 22px; margin: 14px 0 0; font-size: 14px; color: var(--bad); font-weight: 500; }
+.go { width: 100%; margin-top: 6px; padding: 16px; font-size: 16px; }
+.go.ok { background: var(--ok); border-color: var(--ok); color: #04170d; }
+.preview { margin: 18px 0 0; padding: 12px 14px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); font-family: var(--mono); font-size: 12.5px; color: var(--mut); white-space: pre-wrap; overflow-wrap: anywhere; }
+.foot { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; color: var(--mut); font-size: 14px; }
+
+/* heavy layer */
+main { overflow-x: clip; padding-bottom: 6px; }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 48px 48px; opacity: .28;
+  -webkit-mask-image: linear-gradient(#000, transparent 75%); mask-image: linear-gradient(#000, transparent 75%);
+}
+.btn:not(.ghost) { box-shadow: 0 5px 0 #a87c00; }
+.btn:not(.ghost):hover { transform: translateY(-1px); box-shadow: 0 7px 0 #a87c00, 0 12px 28px rgba(255,194,26,.28); }
+.btn:not(.ghost):active { transform: translateY(4px); box-shadow: 0 1px 0 #a87c00; }
+.go.ok { box-shadow: 0 5px 0 #1c9a64; }
+h1 { font-size: clamp(42px, 7.4vw, 84px); text-shadow: 0 0 40px rgba(255,194,26,.18); }
+h1 em { background: linear-gradient(100deg, #ffd95a, #ff9f1a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.board { border-color: rgba(255,194,26,.45); box-shadow: 0 0 0 4px rgba(255,194,26,.07), 0 30px 80px -20px rgba(255,194,26,.25); }
+.row { transition: background .15s ease, padding-left .15s ease; }
+.row:hover { padding-left: 24px; }
+.card { box-shadow: 0 20px 60px -30px rgba(0,0,0,.8); background-image: linear-gradient(180deg, rgba(255,194,26,.05), transparent 120px); }
+.marq { margin: 18px calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 0; overflow: hidden; background: var(--accent); color: var(--accent-ink); transform: rotate(-1.2deg); box-shadow: 0 10px 0 -4px rgba(255,194,26,.2); }
+.marq-track { display: flex; align-items: center; gap: 22px; width: max-content; padding: 13px 0; font-family: var(--display); font-weight: 800; font-size: 22px; text-transform: uppercase; letter-spacing: -.01em; white-space: nowrap; animation: slide 28s linear infinite; }
+.marq-track i { width: 12px; height: 12px; background: var(--accent-ink); transform: rotate(45deg); flex: none; }
+@keyframes slide { to { transform: translateX(-50%); } }
+.how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 44px 0 4px; }
+.how-card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; position: relative; overflow: hidden; min-width: 0; }
+.how-card b { position: absolute; right: 12px; top: -8px; font-family: var(--display); font-weight: 800; font-size: 84px; line-height: 1; color: rgba(255,194,26,.12); }
+.how-card h3 { font-family: var(--display); font-weight: 800; font-size: 26px; margin: 0 0 6px; letter-spacing: -.02em; }
+.how-card p { margin: 0; color: var(--mut); position: relative; }
+@media (prefers-reduced-motion: reduce) { .marq-track { animation: none; } }
+@media (max-width: 860px) {
+  .how { grid-template-columns: 1fr; }
+  .marq-track { font-size: 18px; }
+}
+@media (max-width: 860px) {
+  .hero, .grid { grid-template-columns: 1fr; }
+  .hero { padding-top: 24px; gap: 28px; }
+  .nav a.link { display: none; }
+}
+@media (max-width: 420px) {
+  .brand span { font-size: 17px; }
+  .card { padding: 18px; }
+  .acct .num { font-size: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="bar">
+    <a class="brand" href="#top" aria-label="CheapOrderRates home">
+      <svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="#ffc21a"/>
+        <path d="M9 27 L17 18 L22 23 L31 12" fill="none" stroke="#1a1300" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M24 12 H31 V19" fill="none" stroke="#1a1300" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="10" cy="11" r="2.6" fill="#1a1300"/>
+      </svg>
+      <span>Cheap<b>Order</b>Rates</span>
+    </a>
+    <nav class="nav">
+      <a class="link" href="#rates">Rates</a>
+      <a class="link" href="#order">How to order</a>
+      <a class="btn small" href="https://wa.me/923287547879" target="_blank" rel="noopener">WhatsApp</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">TikTok · Telegram · PKR</p>
+        <h1>Low rates for <em>TikTok</em> and Telegram growth.</h1>
+        <p class="lead">Pick a service, send the payment on EasyPaisa, and your order details go straight to us on WhatsApp.</p>
+        <div class="cta">
+          <a class="btn" href="#order">Place an order</a>
+          <a class="btn ghost" href="#rates">See rates</a>
+        </div>
+        <div class="pay-note">
+          <span>Pay with EasyPaisa</span>
+          <span>Order confirmed on WhatsApp</span>
+        </div>
+      </div>
+
+      <div class="board" id="rates" aria-label="Rate board">
+        <div class="board-head"><span>Service</span><span>Rate in Rs</span></div>
+        <div id="rows"></div>
+      </div>
+    </div>
+
+    <div class="marq" aria-hidden="true">
+      <div class="marq-track">
+        <span>TikTok Likes</span><i></i><span>TikTok Followers</span><i></i><span>TikTok Comments</span><i></i><span>TikTok Saves</span><i></i><span>TikTok Shares</span><i></i><span>Telegram Members</span><i></i>
+        <span>TikTok Likes</span><i></i><span>TikTok Followers</span><i></i><span>TikTok Comments</span><i></i><span>TikTok Saves</span><i></i><span>TikTok Shares</span><i></i><span>Telegram Members</span><i></i>
+      </div>
+    </div>
+
+    <section class="how" aria-label="How it works">
+      <article class="how-card"><b>01</b><h3>Choose</h3><p>Pick a service from the rate board and enter your link and quantity.</p></article>
+      <article class="how-card"><b>02</b><h3>Pay</h3><p>Send the total to our EasyPaisa number and note the TRX ID.</p></article>
+      <article class="how-card"><b>03</b><h3>Send</h3><p>Tap Next. WhatsApp opens with your whole order written for you.</p></article>
+    </section>
+
+    <section class="order" id="order">
+      <h2>Place your order</h2>
+      <p class="sub">Fill in step 1, pay in step 2, then tap the button to send everything on WhatsApp.</p>
+
+      <div class="grid">
+        <div class="card">
+          <p class="step"><i>1</i> Your order</p>
+          <label for="service">Service</label>
+          <select id="service"></select>
+
+          <label for="link" id="linkLabel">TikTok link</label>
+          <input id="link" type="url" inputmode="url" autocomplete="off" placeholder="https://www.tiktok.com/@name/video/...">
+
+          <label for="qty">Quantity</label>
+          <input id="qty" type="number" inputmode="numeric" min="1" step="1" value="1000">
+          <p class="hint" id="qtyHint"></p>
+          <div class="chips" id="chips"></div>
+
+          <div class="total"><span>Total to pay</span><strong id="total">Rs 0</strong></div>
+        </div>
+
+        <div class="card">
+          <p class="step"><i>2</i> Pay on EasyPaisa</p>
+          <div class="acct">
+            <div class="k">EasyPaisa number</div>
+            <div class="v">
+              <span class="num" id="epNum">03493959558</span>
+              <button class="btn ghost small" type="button" id="copyNum">Copy</button>
+            </div>
+          </div>
+          <p class="send-amt">Send exactly <b id="sendAmt">Rs 0</b>, then paste the transaction ID below.</p>
+
+          <label for="trx">EasyPaisa TRX ID</label>
+          <input id="trx" type="text" autocomplete="off" placeholder="e.g. 12345678901">
+
+          <p class="step" style="margin-top:22px"><i>3</i> Send on WhatsApp</p>
+          <a class="btn go" id="go" href="https://wa.me/923287547879" target="_blank" rel="noopener">Next: send order on WhatsApp</a>
+          <div class="fallback" id="fallback" hidden>
+            <p>WhatsApp did not open? Tap this button. The message is already written, you only press send.</p>
+            <a class="btn ghost small" id="go2" href="https://api.whatsapp.com/send?phone=923287547879" target="_blank" rel="noopener">Open WhatsApp again</a>
+          </div>
+          <p class="err" id="err" role="alert" aria-live="polite"></p>
+          <div class="preview" id="preview"></div>
+          <p class="hint">The message above opens in your WhatsApp chat with 0328 7547879. Press send there to confirm.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="foot">
+      <span>CheapOrderRates</span>
+      <span>WhatsApp: 0328 7547879</span>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var WA = "923287547879";
+  var S = [
+    { id: "likes",     name: "TikTok Likes",      per: 1000, rate: 950,  min: 100, link: "TikTok video link", ph: "https://www.tiktok.com/@name/video/..." },
+    { id: "comments",  name: "TikTok Comments",   per: 100,  rate: 300,  min: 10,  link: "TikTok video link", ph: "https://www.tiktok.com/@name/video/..." },
+    { id: "followers", name: "TikTok Followers",  per: 1000, rate: 1500, min: 100, link: "TikTok profile link", ph: "https://www.tiktok.com/@name" },
+    { id: "saves",     name: "TikTok Saves",      per: 1000, rate: 250,  min: 100, link: "TikTok video link", ph: "https://www.tiktok.com/@name/video/..." },
+    { id: "shares",    name: "TikTok Shares",     per: 1000, rate: 300,  min: 100, link: "TikTok video link", ph: "https://www.tiktok.com/@name/video/..." },
+    { id: "telegram",  name: "Telegram Members",  per: 1000, rate: 750,  min: 100, link: "Telegram channel or group link", ph: "https://t.me/yourchannel" }
+  ];
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n) { return "Rs " + Math.round(n).toLocaleString("en-US"); };
+  var cur = S[0];
+
+  var rows = $("rows"), sel = $("service");
+  S.forEach(function (s) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "row";
+    b.innerHTML = '<span class="name">' + s.name + '</span><span class="unit">per ' + s.per.toLocaleString("en-US") + ' · minimum ' + s.min + '</span><span class="price">' + s.rate.toLocaleString("en-US") + '<small>PER ' + s.per.toLocaleString("en-US") + '</small></span>';
+    b.addEventListener("click", function () { pick(s.id, true); });
+    rows.appendChild(b);
+    var o = document.createElement("option");
+    o.value = s.id; o.textContent = s.name + " — Rs " + s.rate.toLocaleString("en-US") + " per " + s.per.toLocaleString("en-US");
+    sel.appendChild(o);
+  });
+
+  function pick(id, scroll) {
+    cur = S.filter(function (s) { return s.id === id; })[0];
+    sel.value = id;
+    $("linkLabel").textContent = cur.link;
+    $("link").placeholder = cur.ph;
+    $("qty").min = cur.min;
+    var q = parseInt($("qty").value, 10);
+    if (!q || q < cur.min) $("qty").value = Math.max(cur.min, cur.per);
+    $("qtyHint").textContent = "Minimum " + cur.min.toLocaleString("en-US") + " · Rs " + cur.rate.toLocaleString("en-US") + " per " + cur.per.toLocaleString("en-US");
+    var chips = $("chips"); chips.innerHTML = "";
+    [cur.min, cur.per, cur.per * 2, cur.per * 5].filter(function (v, i, a) { return a.indexOf(v) === i; }).forEach(function (v) {
+      var c = document.createElement("button");
+      c.type = "button"; c.className = "chip"; c.textContent = v.toLocaleString("en-US");
+      c.addEventListener("click", function () { $("qty").value = v; update(); });
+      chips.appendChild(c);
+    });
+    update();
+    if (scroll) { $("order").scrollIntoView({ behavior: "smooth" }); }
+  }
+
+  function total() { var q = parseInt($("qty").value, 10) || 0; return q * cur.rate / cur.per; }
+  function message() {
+    var q = parseInt($("qty").value, 10) || 0;
+    return "New order - CheapOrderRates\n" +
+      "Service: " + cur.name + "\n" +
+      "Link: " + ($("link").value.trim() || "-") + "\n" +
+      "Quantity: " + q.toLocaleString("en-US") + "\n" +
+      "Total: " + fmt(total()) + "\n" +
+      "EasyPaisa TRX ID: " + ($("trx").value.trim() || "-");
+  }
+  function update() {
+    var t = fmt(total());
+    $("total").textContent = t; $("sendAmt").textContent = t;
+    var m = message();
+    $("preview").textContent = m;
+    $("go").href = "https://wa.me/" + WA + "?text=" + encodeURIComponent(m);
+    $("go2").href = "https://api.whatsapp.com/send?phone=" + WA + "&text=" + encodeURIComponent(m);
+    $("go").textContent = "Next: send order on WhatsApp";
+  }
+  function problem() {
+    var q = parseInt($("qty").value, 10) || 0;
+    if (!$("link").value.trim()) return "Add your " + cur.link.toLowerCase() + " in step 1.";
+    if (q < cur.min) return "Minimum quantity for " + cur.name + " is " + cur.min.toLocaleString("en-US") + ".";
+    if ($("trx").value.trim().length < 6) return "Enter your EasyPaisa TRX ID after paying.";
+    return "";
+  }
+
+  function copy(text, btn, done) {
+    var label = btn.textContent;
+    function ok() { btn.textContent = done; setTimeout(function () { btn.textContent = label; }, 1600); }
+    function fallback() {
+      var r = document.createRange(), n = $("epNum");
+      if (btn.id === "copyNum") { r.selectNodeContents(n); } else { r.selectNodeContents($("preview")); }
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      btn.textContent = "Selected, press copy";
+      setTimeout(function () { btn.textContent = label; }, 2200);
+    }
+    try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (e) { fallback(); }
+  }
+
+  $("copyNum").addEventListener("click", function () { copy("03493959558", this, "Copied"); });
+  $("go").addEventListener("click", function (e) {
+    var p = problem();
+    $("err").textContent = p;
+    if (p) { e.preventDefault(); $("fallback").hidden = true; return; }
+    update();
+    $("fallback").hidden = false;
+    $("go").textContent = "Order ready: opening WhatsApp";
+  });
+  sel.addEventListener("change", function () { pick(sel.value, false); });
+  ["link", "qty", "trx"].forEach(function (id) { $(id).addEventListener("input", function () { $("err").textContent = ""; update(); }); });
+
+  pick("likes", false);
+})();
+</script>
+
+</body>
+</html>
